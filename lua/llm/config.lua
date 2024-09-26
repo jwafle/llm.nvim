@@ -3,7 +3,7 @@ local M = {}
 -- Default configuration
 M.defaults = {
 	models = {
-		ollama_default = {
+		ollama_llama_32 = {
 			model_name = "llama3.2", -- Replace with your specific Ollama model name
 			url = "http://localhost:11434/api/generate",
 			max_tokens = 150,
@@ -18,10 +18,10 @@ M.defaults = {
 		},
 		-- Add more Ollama models as needed
 	},
-	default_model = "ollama_default",
+	default_model = "ollama_llama_32",
 	prompt = "Please assist me with the following code:",
 	model_shortcuts = {
-		["<leader>lg"] = "ollama_default",
+		["<leader>lg"] = "ollama_llama_32",
 		-- Define more shortcuts as needed
 	},
 }
