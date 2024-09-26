@@ -19,7 +19,7 @@ function M.define_keybindings()
 	local shortcuts = config.get_model_shortcuts()
 	for shortcut, model in pairs(shortcuts) do
 		vim.api.nvim_set_keymap(
-			"n",
+			"v",
 			shortcut,
 			string.format(':lua require("llm.api").open_hover_window_with_model("%s")<CR>', model),
 			opts
