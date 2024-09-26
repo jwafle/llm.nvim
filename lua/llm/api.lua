@@ -11,6 +11,8 @@ M.state = {
 
 -- Function to open the floating window with selected text and a specific model
 function M.open_hover_window_with_model(model)
+	vim.notify("Opening hover window with model: " .. model, vim.log.levels.INFO)
+
 	-- Get selected text in visual mode
 	local selected_text = M.get_visual_selection()
 	if not selected_text or selected_text == "" then
@@ -18,8 +20,14 @@ function M.open_hover_window_with_model(model)
 		return
 	end
 
+	vim.notify("Selected text: " .. selected_text, vim.log.levels.DEBUG)
+
 	-- Create a new buffer
 	local buf = vim.api.nvim_create_buf(false, true) -- (listed, scratch)
+	if not buf then
+		vim.notify("Failed to create buffer.", vim.log.levels.ERROR)
+		return
+	end
 	M.state.buf = buf
 
 	-- Define window dimensions
@@ -39,7 +47,11 @@ function M.open_hover_window_with_model(model)
 	}
 
 	-- Create floating window
-	local win = vim.api.nvim_open_win(buf, true, opts)
+	local success, win = pcall(vim.api.nvim_open_win, buf, true, opts)
+	if not success then
+		vim.notify("Failed to open floating window.", vim.log.levels.ERROR)
+		return
+	end
 	M.state.win = win
 
 	-- Insert prompt and selected text
@@ -53,13 +65,17 @@ function M.open_hover_window_with_model(model)
 	-- Store the selected model
 	M.state.selected_model = model
 
+	vim.notify("Floating window created successfully.", vim.log.levels.INFO)
+
 	-- Set keybindings inside the window
 	M.set_window_keybindings(buf)
 end
 
 -- Function to open the floating window with the default model
 function M.open_hover_window()
-	M.open_hover_window_with_model(config.get_selected_model())
+	local default_model = config.get_selected_model()
+	vim.notify("Opening hover window with default model: " .. default_model, vim.log.levels.INFO)
+	M.open_hover_window_with_model(default_model)
 end
 
 -- Helper function to get visual selection
@@ -76,19 +92,44 @@ function M.get_visual_selection()
 		return nil
 	end
 
-	-- Get selected lines
+	-- Get selection positions
 	local start_pos = vim.fn.getpos("'<")
 	local end_pos = vim.fn.getpos("'>")
+
+	-- Ensure start is before end
+	if start_pos[2] > end_pos[2] or (start_pos[2] == end_pos[2] and start_pos[3] > end_pos[3]) then
+		start_pos, end_pos = end_pos, start_pos
+	end
+
 	local lines = vim.fn.getline(start_pos[2], end_pos[2])
 
-	-- Restore view
-	vim.fn.winrestview(view)
-
-	return table.concat(lines, "\n")
+	-- For block mode, get the columns and extract the block
+	if mode == "\22" then
+		local start_col = start_pos[3]
+		local end_col = end_pos[3]
+		-- Handle cases where end_col < start_col
+		if end_col < start_col then
+			start_col, end_col = end_col, start_col
+		end
+		local selected_block = {}
+		for _, line in ipairs(lines) do
+			-- Ensure columns are within line length
+			local line_len = #line
+			local s = math.max(start_col, 1)
+			local e = math.min(end_col, line_len)
+			local substring = string.sub(line, s, e)
+			table.insert(selected_block, substring)
+		end
+		return table.concat(selected_block, "\n")
+	else
+		-- Line-wise or character-wise visual mode
+		return table.concat(lines, "\n")
+	end
 end
 
 -- Function to set keybindings inside the floating window
 function M.set_window_keybindings(buf)
+	vim.notify("Setting keybindings in floating window.", vim.log.levels.DEBUG)
 	-- <C-s> to send to LLM
 	vim.api.nvim_buf_set_keymap(
 		buf,
@@ -110,6 +151,7 @@ end
 
 -- Function to send buffer content to LLM
 function M.send_to_llm()
+	vim.notify("Sending content to LLM...", vim.log.levels.INFO)
 	local buf = M.state.buf
 	if not buf or not vim.api.nvim_buf_is_loaded(buf) then
 		vim.notify("No active LLM window.", vim.log.levels.ERROR)
@@ -120,6 +162,8 @@ function M.send_to_llm()
 	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 	local content = table.concat(lines, "\n")
 
+	vim.notify("Buffer content retrieved.", vim.log.levels.DEBUG)
+
 	-- Split content into prompt and user text
 	local prompt, user_text = content:match("^(.-)\n\n(.*)$")
 	if not prompt or not user_text or user_text == "" then
@@ -127,11 +171,16 @@ function M.send_to_llm()
 		return
 	end
 
+	vim.notify("Prompt: " .. prompt, vim.log.levels.DEBUG)
+	vim.notify("User Text: " .. user_text, vim.log.levels.DEBUG)
+
 	-- Get the selected LLM model
 	local model = M.state.selected_model or config.get_selected_model()
+	vim.notify("Using model: " .. model, vim.log.levels.INFO)
 
 	-- Send request to Ollama's /api/generate endpoint asynchronously using plenary.job with curl
 	M.call_llm_api(model, prompt, user_text, function(response)
+		vim.notify("LLM responded. Inserting response...", vim.log.levels.INFO)
 		-- Insert response into the buffer
 		vim.schedule(function()
 			-- Find the index to insert response
@@ -139,8 +188,10 @@ function M.send_to_llm()
 			local existing = vim.fn.search(response_header, "nw")
 			if existing == 0 then
 				vim.api.nvim_buf_set_lines(buf, -1, -1, false, { "", response_header, response })
+				vim.notify("Response inserted after header.", vim.log.levels.INFO)
 			else
 				vim.api.nvim_buf_set_lines(buf, existing + 1, existing + 1, false, { response })
+				vim.notify("Response appended.", vim.log.levels.INFO)
 			end
 		end)
 	end)
@@ -148,6 +199,7 @@ end
 
 -- Function to make API call to Ollama's /api/generate using plenary.job with curl
 function M.call_llm_api(model, prompt, user_text, callback)
+	vim.notify("Preparing API request...", vim.log.levels.DEBUG)
 	-- Retrieve model configuration
 	local model_config = config.get_model_config(model)
 	if not model_config then
@@ -171,6 +223,8 @@ function M.call_llm_api(model, prompt, user_text, callback)
 		options = model_config.options,
 	})
 
+	vim.notify("Request Body: " .. request_body, vim.log.levels.DEBUG)
+
 	-- Prepare headers
 	local headers = {
 		"-H",
@@ -190,6 +244,7 @@ function M.call_llm_api(model, prompt, user_text, callback)
 			url,
 		},
 		on_exit = function(j, return_val)
+			vim.notify("Curl process exited with code: " .. return_val, vim.log.levels.DEBUG)
 			if return_val ~= 0 then
 				vim.schedule(function()
 					vim.notify("Ollama API request failed.", vim.log.levels.ERROR)
@@ -198,6 +253,8 @@ function M.call_llm_api(model, prompt, user_text, callback)
 			end
 
 			local response = table.concat(j:result(), "\n")
+			vim.notify("Raw API Response: " .. response, vim.log.levels.DEBUG)
+
 			local success, parsed = pcall(vim.json.decode, response)
 
 			if not success then
@@ -217,12 +274,16 @@ function M.call_llm_api(model, prompt, user_text, callback)
 			end
 		end,
 	}):start()
+
+	vim.notify("API call initiated.", vim.log.levels.INFO)
 end
 
 -- Function to close the floating window
 function M.close_hover_window()
+	vim.notify("Attempting to close hover window...", vim.log.levels.INFO)
 	if M.state.win and vim.api.nvim_win_is_valid(M.state.win) then
 		vim.api.nvim_win_close(M.state.win, true)
+		vim.notify("Floating window closed.", vim.log.levels.INFO)
 		M.state.win = nil
 		M.state.buf = nil
 		M.state.selected_model = nil
