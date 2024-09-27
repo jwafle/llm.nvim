@@ -157,8 +157,12 @@ function M.invoke_llm_and_stream_into_editor(opts, make_curl_args_fn, handle_dat
 	vim.api.nvim_clear_autocmds({ group = group })
 	local system_prompt = opts.system_prompt or "Tell me I forget to setup my llm.nvim plugin configuration."
 	local prompt = get_prompt(opts)
+
+	vim.notify("prompt: " .. prompt, vim.log.levels.INFO)
+
 	local curr_event_state = nil
 	local args = make_curl_args_fn(opts, prompt, system_prompt)
+	vim.notify("args: " .. args, vim.log.levels.INFO)
 	local crow, _ = unpack(vim.api.nvim_win_get_cursor(0))
 	local stream_end_extmark_id = vim.api.nvim_buf_set_extmark(0, ns_id, crow - 1, -1, {})
 
