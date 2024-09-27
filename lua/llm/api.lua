@@ -11,8 +11,6 @@ M.state = {
 
 -- Function to open the floating window with selected text and a specific model
 function M.open_hover_window_with_model(model)
-	vim.notify("Opening hover window with model: " .. model, vim.log.levels.INFO)
-
 	-- Get selected text in visual mode
 	local selected_text = M.get_visual_selection()
 	if not selected_text or selected_text == "" then
@@ -65,8 +63,6 @@ function M.open_hover_window_with_model(model)
 	-- Store the selected model
 	M.state.selected_model = model
 
-	vim.notify("Floating window created successfully.", vim.log.levels.INFO)
-
 	-- Set keybindings inside the window
 	M.set_window_keybindings(buf)
 end
@@ -74,7 +70,6 @@ end
 -- Function to open the floating window with the default model
 function M.open_hover_window()
 	local default_model = config.get_selected_model()
-	vim.notify("Opening hover window with default model: " .. default_model, vim.log.levels.INFO)
 	M.open_hover_window_with_model(default_model)
 end
 
@@ -129,7 +124,6 @@ end
 
 -- Function to set keybindings inside the floating window
 function M.set_window_keybindings(buf)
-	vim.notify("Setting keybindings in floating window.", vim.log.levels.DEBUG)
 	-- <C-s> to send to LLM
 	vim.api.nvim_buf_set_keymap(
 		buf,
