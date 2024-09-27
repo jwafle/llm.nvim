@@ -114,17 +114,17 @@ end
 local function get_prompt(opts)
 	local replace = opts.replace
 	local visual_lines = M.get_visual_selection()
-	local prompt = "Current file: " .. vim.api.nvim_buf_get_name(0) .. "\n"
+	local prompt = ""
 
 	if visual_lines then
-		prompt = prompt .. table.concat(visual_lines, "\n")
+		prompt = table.concat(visual_lines, "\n")
 		if replace then
 			vim.api.nvim_command("normal! c")
 		else
 			vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", false, true, true), "nx", false)
 		end
 	else
-		prompt = prompt .. M.get_lines_to_cursor()
+		prompt = M.get_lines_to_cursor()
 	end
 	return prompt
 end
