@@ -145,7 +145,6 @@ end
 
 -- Function to send buffer content to LLM
 function M.send_to_llm()
-	vim.notify("Sending content to LLM...", vim.log.levels.INFO)
 	local buf = M.state.buf
 	if not buf or not vim.api.nvim_buf_is_loaded(buf) then
 		vim.notify("No active LLM window.", vim.log.levels.ERROR)
@@ -155,8 +154,6 @@ function M.send_to_llm()
 	-- Get the content from the buffer
 	local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
 	local content = table.concat(lines, "\n")
-
-	vim.notify("Buffer content retrieved.", vim.log.levels.DEBUG)
 
 	-- Split content into prompt and user text
 	local prompt, user_text = content:match("^(.-)\n\n(.*)$")
@@ -174,7 +171,6 @@ function M.send_to_llm()
 
 	-- Send request to Ollama's /api/generate endpoint asynchronously using plenary.job with curl
 	M.call_llm_api(model, prompt, user_text, function(response)
-		vim.notify("LLM responded. Inserting response...", vim.log.levels.INFO)
 		-- Insert response into the buffer
 		vim.schedule(function()
 			-- Find the index to insert response
@@ -182,10 +178,8 @@ function M.send_to_llm()
 			local existing = vim.fn.search(response_header, "nw")
 			if existing == 0 then
 				vim.api.nvim_buf_set_lines(buf, -1, -1, false, { "", response_header, response })
-				vim.notify("Response inserted after header.", vim.log.levels.INFO)
 			else
 				vim.api.nvim_buf_set_lines(buf, existing + 1, existing + 1, false, { response })
-				vim.notify("Response appended.", vim.log.levels.INFO)
 			end
 		end)
 	end)
@@ -193,7 +187,6 @@ end
 
 -- Function to make API call to Ollama's /api/generate using plenary.job with curl
 function M.call_llm_api(model, prompt, user_text, callback)
-	vim.notify("Preparing API request...", vim.log.levels.DEBUG)
 	-- Retrieve model configuration
 	local model_config = config.get_model_config(model)
 	if not model_config then
@@ -217,8 +210,6 @@ function M.call_llm_api(model, prompt, user_text, callback)
 		options = model_config.options,
 	})
 
-	vim.notify("Request Body: " .. request_body, vim.log.levels.DEBUG)
-
 	-- Prepare headers
 	local headers = {
 		"-H",
@@ -238,7 +229,6 @@ function M.call_llm_api(model, prompt, user_text, callback)
 			url,
 		},
 		on_exit = function(j, return_val)
-			vim.notify("Curl process exited with code: " .. return_val, vim.log.levels.DEBUG)
 			if return_val ~= 0 then
 				vim.schedule(function()
 					vim.notify("Ollama API request failed.", vim.log.levels.ERROR)
@@ -247,7 +237,6 @@ function M.call_llm_api(model, prompt, user_text, callback)
 			end
 
 			local response = table.concat(j:result(), "\n")
-			vim.notify("Raw API Response: " .. response, vim.log.levels.DEBUG)
 
 			local success, parsed = pcall(vim.json.decode, response)
 
@@ -268,13 +257,10 @@ function M.call_llm_api(model, prompt, user_text, callback)
 			end
 		end,
 	}):start()
-
-	vim.notify("API call initiated.", vim.log.levels.INFO)
 end
 
 -- Function to close the floating window
 function M.close_hover_window()
-	vim.notify("Attempting to close hover window...", vim.log.levels.INFO)
 	if M.state.win and vim.api.nvim_win_is_valid(M.state.win) then
 		vim.api.nvim_win_close(M.state.win, true)
 		vim.notify("Floating window closed.", vim.log.levels.INFO)
