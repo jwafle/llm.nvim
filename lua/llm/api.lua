@@ -225,7 +225,6 @@ function M.call_llm_api(model, prompt, user_text, callback)
 
 	-- Prepare headers
 	local headers = {
-		"-H",
 		"Content-Type: application/json",
 	}
 
