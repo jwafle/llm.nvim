@@ -242,7 +242,9 @@ function M.call_llm_api(model, prompt, user_text, callback)
 			url,
 		},
 		on_exit = function(j, return_val)
-			vim.notify("Curl process exited with code: " .. return_val, vim.log.levels.DEBUG)
+			vim.schedule(function()
+				vim.notify("Curl process exited with code: " .. return_val, vim.log.levels.DEBUG)
+			end)
 			if return_val ~= 0 then
 				vim.schedule(function()
 					vim.notify("Ollama API request failed.", vim.log.levels.ERROR)
@@ -251,7 +253,9 @@ function M.call_llm_api(model, prompt, user_text, callback)
 			end
 
 			local response = table.concat(j:result(), "\n")
-			vim.notify("Raw API Response: " .. response, vim.log.levels.DEBUG)
+			vim.schedule(function()
+				vim.notify("Raw API Response: " .. response, vim.log.levels.DEBUG)
+			end)
 
 			local success, parsed = pcall(vim.json.decode, response)
 
