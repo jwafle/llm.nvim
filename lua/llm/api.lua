@@ -1,5 +1,4 @@
 local M = {}
-local config = require("llm.config")
 local Job = require("plenary.job")
 local ns_id = vim.api.nvim_create_namespace("llm")
 
